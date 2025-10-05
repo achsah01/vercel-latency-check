@@ -1,31 +1,44 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import Response, JSONResponse
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 import json
 import statistics
 
 app = FastAPI()
 
-# Forceful CORS middleware to allow all origins and handle OPTIONS preflight
-@app.middleware("http")
-async def force_cors(request: Request, call_next):
-    if request.method == "OPTIONS":
-        headers = {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-        }
-        return Response(status_code=204, headers=headers)
+# Step 2: Configure CORS middleware - Paste this near the top after app = FastAPI()
+origins = [
+    "http://localhost:3000",  # Add your frontend URL(s) here for production
+    "https://your-frontend-domain.com"  # Replace with actual domain if available
+]
 
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    return response
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,  # True if frontend sends cookies or auth headers
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Step 3: Handle OPTIONS preflight requests - Paste this after middleware but before route definitions
+@app.options("/{rest_of_path:path}")
+async def options_handler(rest_of_path: str):
+    return Response(
+        status_code=204,
+        headers={
+            "Access-Control-Allow-Origin": origins[0],  # Match the origin appropriately
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
 
 # Load telemetry data once on startup
 with open("q-vercel-latency.json") as f:
     telemetry_data = json.load(f)
 
 @app.post("/")
-async def check_latency(request: Request):
+async def check_latency(request):
     body = await request.json()
     regions = body.get('regions', [])
     threshold_ms = body.get('threshold_ms', 0)
