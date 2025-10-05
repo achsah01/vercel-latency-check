@@ -1,6 +1,5 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-import os
 import json
 import statistics
 
@@ -9,13 +8,16 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["POST"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
-# Load telemetry data once on startup
 with open("q-vercel-latency.json") as f:
     telemetry_data = json.load(f)
+
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    return Response(status_code=200)
 
 @app.post("/")
 async def check_latency(request: Request):
@@ -33,12 +35,10 @@ async def check_latency(request: Request):
 
         if latencies:
             avg_latency = statistics.mean(latencies)
-            p95_latency = statistics.quantiles(latencies, n=100)[94]  # 95th percentile
+            p95_latency = statistics.quantiles(latencies, n=100)[94]
             avg_uptime = statistics.mean(uptimes)
         else:
-            avg_latency = 0
-            p95_latency = 0
-            avg_uptime = 0
+            avg_latency = p95_latency = avg_uptime = 0
 
         results[region] = {
             "avg_latency": round(avg_latency, 2),
