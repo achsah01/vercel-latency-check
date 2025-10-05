@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 import json
@@ -6,39 +6,40 @@ import statistics
 
 app = FastAPI()
 
-# Step 2: Configure CORS middleware - Paste this near the top after app = FastAPI()
+# CORS middleware configuration (step 2)
 origins = [
-    "http://localhost:3000",  # Add your frontend URL(s) here for production
-    "https://your-frontend-domain.com"  # Replace with actual domain if available
+    "http://localhost:3000",            # add your frontend origin(s)
+    "https://your-frontend-domain.com" # replace with your actual domain(s)
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,  # True if frontend sends cookies or auth headers
+    allow_credentials=True,  # set True if frontend sends cookies/credentials
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Step 3: Handle OPTIONS preflight requests - Paste this after middleware but before route definitions
+# OPTIONS preflight handler (step 3)
 @app.options("/{rest_of_path:path}")
 async def options_handler(rest_of_path: str):
     return Response(
         status_code=204,
         headers={
-            "Access-Control-Allow-Origin": origins[0],  # Match the origin appropriately
+            "Access-Control-Allow-Origin": origins[0],  # allow first origin
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Allow-Credentials": "true",
         }
     )
 
-# Load telemetry data once on startup
+# Load telemetry data on startup
 with open("q-vercel-latency.json") as f:
     telemetry_data = json.load(f)
 
+# Main POST route with latency check
 @app.post("/")
-async def check_latency(request):
+async def check_latency(request: Request):
     body = await request.json()
     regions = body.get('regions', [])
     threshold_ms = body.get('threshold_ms', 0)
