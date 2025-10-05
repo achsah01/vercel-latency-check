@@ -54,7 +54,11 @@ async def check_latency(request: Request):
 
         if latencies:
             avg_latency = statistics.mean(latencies)
-            p95_latency = statistics.quantiles(latencies, n=100)[94]
+            # p95 calculation requires at least 2 data points for this implementation
+            if len(latencies) > 1:
+                p95_latency = statistics.quantiles(latencies, n=100)[94]
+            else:
+                p95_latency = latencies[0] if latencies else 0
             avg_uptime = statistics.mean(uptimes)
         else:
             avg_latency = p95_latency = avg_uptime = 0
