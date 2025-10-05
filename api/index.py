@@ -1,22 +1,26 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response, JSONResponse
 import json
 import statistics
 
 app = FastAPI()
 
-# Manual CORS middleware to add headers and handle OPTIONS
+# Forceful CORS middleware to allow all origins and handle OPTIONS preflight
 @app.middleware("http")
-async def add_cors_headers(request: Request, call_next):
+async def force_cors(request: Request, call_next):
+    if request.method == "OPTIONS":
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        }
+        return Response(status_code=204, headers=headers)
+
     response = await call_next(request)
     response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    if request.method == "OPTIONS":
-        return JSONResponse(content=None, status_code=204, headers=response.headers)
     return response
 
-# Load telemetry data once during startup
+# Load telemetry data once on startup
 with open("q-vercel-latency.json") as f:
     telemetry_data = json.load(f)
 
