@@ -1,23 +1,24 @@
-from fastapi import FastAPI, Request, Response
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 import json
 import statistics
 
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
-)
+# Manual CORS middleware to add headers and handle OPTIONS
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    if request.method == "OPTIONS":
+        return JSONResponse(content=None, status_code=204, headers=response.headers)
+    return response
 
+# Load telemetry data once during startup
 with open("q-vercel-latency.json") as f:
     telemetry_data = json.load(f)
-
-@app.options("/{full_path:path}")
-async def options_handler(full_path: str):
-    return Response(status_code=200)
 
 @app.post("/")
 async def check_latency(request: Request):
